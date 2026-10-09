@@ -53,6 +53,7 @@ def main() -> int:
         (TOR / "data", "vendor/tor/data"),
         (TOR / "docs", "vendor/tor/docs"),
         (TOR / "VERSION", "vendor/tor"),
+        (ROOT / "assets" / "AIXAI-VPN.ico", "assets"),
         (ROOT / "LICENSE", "."),
         (ROOT / "DISCLAIMER.md", "."),
         (ROOT / "PRIVACY.md", "."),
@@ -75,6 +76,7 @@ def main() -> int:
         "--workpath", str(CACHE / "work"),
         "--specpath", str(CACHE),
         "--version-file", str(version_file),
+        "--icon", str(ROOT / "assets" / "AIXAI-VPN.ico"),
     ]
     for src, dest in datas:
         args += ["--add-data", f"{src}{sep}{dest}"]

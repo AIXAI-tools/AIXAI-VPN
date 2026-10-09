@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/APP_ICON.png" alt="AIXAI-VPN" width="180"></p>
+
 # AIXAI-VPN
 
 讓 Windows 電腦依需求切換成不同國家連線的 VPN 用戶端。免費、以學習為目的開發，嚴格遵守各服務商規範。

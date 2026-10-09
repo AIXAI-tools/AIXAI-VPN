@@ -31,6 +31,8 @@ NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 # Edge 專用設定檔資料夾：和你平常用的 Edge 分開，視窗關閉時程序才會結束
 PROFILE_DIR = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "AIXAI-VPN" / "edge-profile"
 WEBVIEW_DIR = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "AIXAI-VPN" / "webview"
+# 視窗圖示（打包版在 exe 解壓處，開發版在專案根目錄）
+ICON_PATH = Path(__file__).resolve().parent.parent / "assets" / "AIXAI-VPN.ico"
 
 
 def window_size() -> tuple[int, int]:
@@ -159,7 +161,8 @@ def run_app() -> None:
             WEBVIEW_DIR.mkdir(parents=True, exist_ok=True)
             w, h = window_size()
             windows.append(webview.create_window("AIXAI-VPN", url, width=w, height=h, min_size=(340, 400)))
-            webview.start(private_mode=False, storage_path=str(WEBVIEW_DIR))  # 視窗關閉才會返回
+            icon = str(ICON_PATH) if ICON_PATH.exists() else None
+            webview.start(private_mode=False, storage_path=str(WEBVIEW_DIR), icon=icon)  # 視窗關閉才會返回
         else:
             open_edge(url)
             wait_for_edge_window(server, quit_requested)
