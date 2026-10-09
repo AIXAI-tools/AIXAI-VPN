@@ -80,6 +80,28 @@ class UpdaterTest(unittest.TestCase):
             updater.cleanup_old(exe)
             self.assertFalse((Path(tmp) / "AIXAI-VPN.exe.old").exists())
 
+    def test_cleanup_retries_until_old_process_exits(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            exe = Path(tmp) / "AIXAI-VPN.exe"
+            old = Path(tmp) / "AIXAI-VPN.exe.old"
+            old.write_bytes(b"x")
+            calls = []
+            real_unlink = Path.unlink
+
+            def busy_twice(self, missing_ok=False):  # 前兩次模擬「舊版還在執行，刪不掉」
+                if self == old and len(calls) < 2:
+                    calls.append(1)
+                    raise PermissionError("in use")
+                return real_unlink(self, missing_ok=missing_ok)
+
+            Path.unlink = busy_twice
+            try:
+                self.assertFalse(updater.cleanup_old(exe, attempts=1, wait=0))
+                self.assertTrue(updater.cleanup_old(exe, attempts=5, wait=0))
+            finally:
+                Path.unlink = real_unlink
+            self.assertFalse(old.exists())
+
     def test_install_keeps_old_exe_on_hash_mismatch(self):
         with tempfile.TemporaryDirectory() as tmp:
             exe, opener = self._setup(tmp, sums_hash="b" * 64)

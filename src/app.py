@@ -125,7 +125,8 @@ def run_app() -> None:
     start_proxy_watchdog()
     exe = Path(sys.executable) if FROZEN else None
     if exe is not None:
-        cleanup_old(exe)  # 上次程式內更新留下的舊版檔案
+        # 上次程式內更新留下的舊版檔案；舊版程序可能還在結束中，背景重試最多 30 秒
+        threading.Thread(target=cleanup_old, args=(exe, 30), daemon=True).start()
     quit_requested = threading.Event()
     windows: list = []  # pywebview 視窗（Edge 模式為空）
 

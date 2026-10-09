@@ -10,6 +10,7 @@
 import hashlib
 import json
 import re
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -179,10 +180,19 @@ def install(tag: str, exe_path: Path, progress=lambda pct: None, releases=None, 
     progress(100)
 
 
-def cleanup_old(exe_path: Path) -> None:
-    """新版啟動後刪掉上一版留下的 .old／.new（只刪本程式自己產生的這兩個檔）。"""
-    for suffix in (".old", ".new"):
-        try:
-            exe_path.with_name(exe_path.name + suffix).unlink(missing_ok=True)
-        except OSError:
-            pass  # 舊程序可能還沒完全結束；下次啟動再刪
+def cleanup_old(exe_path: Path, attempts: int = 1, wait: float = 1.0) -> bool:
+    """新版啟動後刪掉上一版留下的 .old／.new（只刪本程式自己產生的這兩個檔）。
+    剛更新完時舊版程序（含看門狗）可能還在結束中，檔案刪不掉 → 每隔 wait 秒重試，最多 attempts 次。
+    回傳是否都已清除。"""
+    leftovers = [exe_path.with_name(exe_path.name + s) for s in (".old", ".new")]
+    for i in range(attempts):
+        for p in leftovers:
+            try:
+                p.unlink(missing_ok=True)
+            except OSError:
+                pass
+        if not any(p.exists() for p in leftovers):
+            return True
+        if i + 1 < attempts:
+            time.sleep(wait)
+    return False  # 下次啟動再刪
