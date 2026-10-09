@@ -1,0 +1,18 @@
+# ADR-010：個人資料與執行產物不進 repo
+__pycache__/
+*.pyc
+*.conf
+*.conf.dpapi
+*.ovpn
+.env
+server-cache.json
+edge-profile/
+docs/research/data/
+build/
+dist/
+*.spec
+vendor/
+.venv/
+# 公開版的工作資料夾（另一個 git repo：AIXAI-tools/AIXAI-VPN），由 tools/export_public.py 產生
+public-repo/
+selftest.json

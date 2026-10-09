@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AIXAI-VPN</title>
+  <link rel="stylesheet" href="/app.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <svg class="logo" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5l-8-3Z"/>
+      </svg>
+      <span>AIXAI-VPN</span>
+    </div>
+    <div class="top-right">
+      <div id="conn-pill" class="pill pill-off"><span class="dot"></span><span id="conn-text">未連線</span></div>
+      <button class="icon-btn" id="about-btn" title="關於、更新、回報問題" aria-label="關於">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.01"/></svg>
+        <span class="update-dot" id="update-dot" hidden></span>
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <p class="hero-label">目前位置</p>
+      <p class="hero-value" id="hero-value">未使用 VPN</p>
+      <div class="actions">
+        <button id="search-btn" class="btn btn-primary">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <span>搜尋伺服器</span>
+        </button>
+        <label class="toggle" title="研究模式：網路暫停時自動重試、不提供「改用一般網路」">
+          <input type="checkbox" id="research-toggle">
+          <span class="track"><span class="thumb"></span></span>
+          <span>研究模式</span>
+        </label>
+      </div>
+      <p class="meta" id="meta">按「搜尋伺服器」取得 VPN Gate 最新清單</p>
+    </section>
+
+    <div class="banner" id="banner" hidden>
+      <p id="banner-text"></p>
+      <div class="banner-actions">
+        <button id="retry-btn" class="btn btn-ghost" hidden>重試</button>
+        <button id="normal-btn" class="btn btn-ghost">改用一般網路</button>
+      </div>
+    </div>
+
+    <p class="warning" id="warning" hidden></p>
+    <p class="error" id="error" hidden></p>
+
+    <div class="tabs" role="tablist">
+      <button class="tab is-on" id="tab-vpngate" data-mode="vpngate" role="tab">VPN Gate</button>
+      <button class="tab" id="tab-tor" data-mode="tor" role="tab">Tor</button>
+      <button class="tab" id="tab-vpnbook" data-mode="vpnbook" role="tab">VPNBook</button>
+    </div>
+    <p class="note" id="vpnbook-note" hidden>VPNBook：免註冊，需安裝 WireGuard；設定檔 7 天到期，限個人使用。按「取得」會開啟 VPNBook 頁面（簡體中文），照下方步驟操作即可，其餘由 App 自動完成。</p>
+    <div class="banner-lite" id="vpnbook-fetch" hidden>
+      <p class="steps-title" id="vpnbook-fetch-msg"></p>
+      <ol class="steps" id="vpnbook-steps" hidden>
+        <li>「选择服务器」：點 <b id="step-server"></b></li>
+        <li>「选择端口（UDP）」：保持 <b>443（HTTPS）</b></li>
+        <li>「重要信息」：勾選 <b>我已了解并接受这些条款</b></li>
+        <li>「生成配置」區塊：完成標題下方的 <b>Cloudflare 真人驗證</b> 方塊（勾選框，通常點一下就通過）</li>
+        <li>按藍色按鈕 <b>生成配置</b></li>
+        <li>出現設定內容後，按 <b>下载 .conf 文件</b>（Edge 若問「您要如何處理…」，按 <b>儲存</b>）</li>
+      </ol>
+      <p class="steps-foot" id="vpnbook-steps-foot" hidden>完成後 App 會自動匯入並關閉 VPNBook 頁面。</p>
+    </div>
+    <p class="note" id="tor-note" hidden>Tor：速度較慢、多數串流不支援、部分網站會要求驗證；只對瀏覽器等會套用 Windows Proxy 設定的程式有效。第一次啟動可能要 1～5 分鐘，之後約 1 分鐘內。</p>
+
+    <section>
+      <h2 class="section-title">可連線的國家 <span class="count" id="avail-count"></span></h2>
+      <ul class="grid" id="country-list"></ul>
+      <p class="empty" id="empty-note" hidden>目前 15 國都沒有伺服器，請稍後再搜尋。</p>
+      <p class="note" id="unavail-note" hidden></p>
+    </section>
+  </main>
+
+  <footer class="statusbar">
+    <span><span id="ip-label">對外 IP</span>：<b id="ip">—</b></span>
+    <span>斷線保護：<b id="ks">關</b></span>
+  </footer>
+
+  <!-- 研究模式警告：App 內對話框（瀏覽器內建 confirm 在小視窗會被截斷） -->
+  <dialog class="modal" id="research-dialog" aria-labelledby="research-title">
+    <h3 id="research-title">開啟研究模式？</h3>
+    <ul class="modal-list">
+      <li>VPN 意外斷線時，網路會一直保持暫停並每 30 秒自動重試，不提供「改用一般網路」。</li>
+      <li>即使目標網站（例如串流平台）的條款禁止使用 VPN，也會維持 VPN 連線；可能違反該網站條款，帳號可能被限制或停權，風險由你自行承擔。</li>
+      <li>本工具不會嘗試躲避網站的 VPN 偵測。</li>
+      <li>隨時可以按國家卡片上的「中斷」離開 VPN。</li>
+    </ul>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="research-cancel">取消</button>
+      <button class="btn btn-primary" id="research-ok"><span>我了解，開啟</span></button>
+    </div>
+  </dialog>
+
+  <!-- 使用條款：第一次啟動（或條款改版）必須同意才能使用 -->
+  <dialog class="modal modal-tall" id="terms-dialog" aria-labelledby="terms-title">
+    <h3 id="terms-title">使用條款 <span class="muted" id="terms-ver"></span></h3>
+    <div class="terms-text" id="terms-text">載入中…</div>
+    <div id="terms-consent">
+      <label class="check"><input type="checkbox" id="terms-check"> 我已閱讀並同意以上條款</label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="terms-decline">不同意並結束</button>
+      <button class="btn btn-primary" id="terms-accept" disabled><span>同意</span></button>
+      <button class="btn btn-ghost" id="terms-close" hidden>關閉</button>
+    </div>
+  </dialog>
+
+  <!-- 關於：版本更新／退版、回報問題、條款與隱私 -->
+  <dialog class="modal modal-tall" id="about-dialog" aria-labelledby="about-title">
+    <h3 id="about-title">AIXAI-VPN <span class="muted" id="about-ver"></span></h3>
+    <p class="modal-note" id="update-msg"></p>
+    <div class="progress" id="update-progress" hidden><span id="update-bar"></span></div>
+    <div class="modal-row">
+      <button class="btn btn-ghost" id="update-check">檢查更新</button>
+      <label class="toggle small"><input type="checkbox" id="auto-update"><span class="track"><span class="thumb"></span></span><span>啟動時自動檢查</span></label>
+    </div>
+    <ul class="release-list" id="release-list"></ul>
+    <div class="modal-links">
+      <button class="link-btn" id="open-feedback">回報問題／建議</button>
+      <button class="link-btn" id="open-terms">使用條款</button>
+      <button class="link-btn" data-open="privacy">隱私權政策</button>
+      <button class="link-btn" data-open="releases">發佈頁（GitHub）</button>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="about-close">關閉</button>
+    </div>
+  </dialog>
+
+  <!-- 回報問題：App 只整理內容並開啟 GitHub／郵件程式，由你確認後自己送出 -->
+  <dialog class="modal modal-tall" id="feedback-dialog" aria-labelledby="feedback-title">
+    <h3 id="feedback-title">回報問題／建議</h3>
+    <div class="seg" role="radiogroup">
+      <label><input type="radio" name="fb-kind" value="bug" checked><span>問題</span></label>
+      <label><input type="radio" name="fb-kind" value="idea"><span>建議</span></label>
+      <label><input type="radio" name="fb-kind" value="other"><span>其他</span></label>
+    </div>
+    <textarea id="fb-text" maxlength="4000" rows="6" placeholder="發生什麼事？怎麼操作會出現？（第一行會當作標題）"></textarea>
+    <label class="check"><input type="checkbox" id="fb-diag" checked> 附上診斷資訊（版本、系統、連線狀態、最近紀錄；IP 與使用者路徑會自動遮蔽）</label>
+    <p class="modal-note" id="fb-msg" hidden></p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="fb-cancel">取消</button>
+      <button class="btn btn-ghost" id="fb-copy" hidden>複製內容</button>
+      <button class="btn btn-ghost" id="fb-email">用 Email</button>
+      <button class="btn btn-primary" id="fb-github"><span>用 GitHub</span></button>
+    </div>
+  </dialog>
+
+  <template id="card-tpl">
+    <li class="card">
+      <div class="badge"></div>
+      <div class="info">
+        <p class="name"></p>
+        <p class="sub"></p>
+      </div>
+      <button class="btn btn-ghost connect" disabled>連線</button>
+    </li>
+  </template>
+</body>
+</html>

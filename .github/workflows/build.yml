@@ -1,0 +1,66 @@
+# Builds the Windows executable on a GitHub-hosted runner so every release
+# binary can be traced back to a commit in this repository.
+name: Build
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+
+      - name: Read version
+        id: ver
+        shell: pwsh
+        run: |
+          $v = python -c "from src.version import APP_VERSION; print(APP_VERSION)"
+          if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -ne "v$v") {
+            throw "Tag $env:GITHUB_REF_NAME does not match APP_VERSION $v"
+          }
+          "version=$v" >> $env:GITHUB_OUTPUT
+          "exe=AIXAI-VPN_v$($v.Replace('.', '_'))_Windows_x64.exe" >> $env:GITHUB_OUTPUT
+
+      - name: Download Tor and verify its signature
+        shell: bash  # Git for Windows bash provides gpg
+        run: python tools/fetch_tor.py
+
+      - name: Unit tests
+        run: python -m unittest
+
+      - name: Build
+        run: |
+          python -m pip install -r requirements-build.txt
+          python tools/build_exe.py
+
+      - name: Self-test
+        shell: pwsh
+        run: |
+          $out = Join-Path $pwd 'selftest.json'
+          Start-Process dist\AIXAI-VPN.exe -ArgumentList '--selftest', $out -Wait
+          Get-Content $out
+          if ((Get-Content $out -Raw) -match '"ok": false') { throw 'self-test failed' }
+
+      - name: Rename and SHA256
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory out | Out-Null
+          Copy-Item dist\AIXAI-VPN.exe "out\${{ steps.ver.outputs.exe }}"
+          Get-FileHash "out\${{ steps.ver.outputs.exe }}" -Algorithm SHA256 | Format-List
+          Get-Content vendor\tor\VERSION
+
+      - name: Upload executable
+        uses: actions/upload-artifact@v7
+        with:
+          path: out/${{ steps.ver.outputs.exe }}
+          archive: false
