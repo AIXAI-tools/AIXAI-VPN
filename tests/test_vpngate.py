@@ -28,20 +28,25 @@ class ParseListTest(unittest.TestCase):
 class FilterTest(unittest.TestCase):
     def test_only_target_countries(self):
         codes = {s.country_code for s in filter_targets(parse_list(SAMPLE))}
-        self.assertEqual(codes, {"JP", "AU"})  # KR 不在 15 國
+        self.assertEqual(codes, {"JP", "AU"})  # KR 不在目標國家
 
     def test_group_sorted_by_score(self):
         groups = group_by_country(filter_targets(parse_list(SAMPLE)))
         self.assertEqual([s.hostname for s in groups["JP"]], ["public-vpn-2", "public-vpn-1"])
 
-    def test_availability_lists_all_15(self):
+    def test_availability_lists_all_targets(self):
         result = availability(parse_list(SAMPLE))
-        self.assertEqual(len(result), 15)
+        self.assertEqual(len(result), len(TARGET_COUNTRIES))
         self.assertEqual([c for c, _, _ in result], list(TARGET_COUNTRIES))
         counts = {c: n for c, _, n in result}
         self.assertEqual(counts["JP"], 2)
         self.assertEqual(counts["AU"], 1)
         self.assertEqual(counts["US"], 0)
+
+    def test_targets_include_southeast_asia(self):  # ADR-017
+        self.assertEqual(len(TARGET_COUNTRIES), 20)
+        for code in ("SG", "TH", "VN", "ID", "MY", "PH"):
+            self.assertIn(code, TARGET_COUNTRIES)
 
 
 class FetchTest(unittest.TestCase):

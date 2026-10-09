@@ -1,4 +1,4 @@
-"""試跑：python -m src.core → 列出目前 15 國各有幾台 VPN Gate 伺服器。"""
+"""試跑：python -m src.core → 列出目前目標國家各有幾台 VPN Gate 伺服器。"""
 
 import sys
 

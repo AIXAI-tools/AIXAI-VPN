@@ -2,7 +2,7 @@
 
 VPN Gate 的清單只代表「伺服器曾回報上線」；實測 105 台中只有約 1/3 真的能用 SSTP 連。
 所以搜尋時對每台伺服器：
-  1. TCP 連 443
+  1. TCP 連 443（或伺服器自己的 TCP port，ADR-017）
   2. TLS 握手並驗證憑證（和 Windows 連線時一樣嚴格）
   3. 送出 SSTP 規格的開頭請求（SSTP_DUPLEX_POST），伺服器回 HTTP 200 才算可用
 同時量測延遲（從使用者這端），用來排序。
@@ -13,12 +13,16 @@ import ssl
 import time
 from concurrent.futures import ThreadPoolExecutor
 
+from src.core.vpngate import split_endpoint
+
 # MS-SSTP 規格固定的請求路徑
 SSTP_PATH = "/sra_{BA195980-CD49-458b-9E23-C84EE0ADCD75}/"
 
 
 def sstp_probe(host: str, port: int = 443, timeout: float = 3.0) -> int | None:
     """可用回傳延遲（毫秒），不可用回傳 None。"""
+    if ":" in host:  # 「主機:port」格式
+        host, port = split_endpoint(host)
     start = time.monotonic()
     try:
         ctx = ssl.create_default_context()

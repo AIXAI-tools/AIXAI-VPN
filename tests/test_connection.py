@@ -57,6 +57,20 @@ class ValidateHostTest(unittest.TestCase):
                 validate_host(bad)
 
 
+class ValidateEndpointTest(unittest.TestCase):
+    def test_accepts_host_with_port(self):
+        from src.connector.windows.sstp import validate_endpoint
+        for ok in ["vpn687646657.opengw.net", "vpn687646657.opengw.net:1382", "a.opengw.net:65535"]:
+            self.assertEqual(validate_endpoint(ok), ok)
+
+    def test_rejects_bad_ports_and_injection(self):
+        from src.connector.windows.sstp import validate_endpoint
+        for bad in ["a.opengw.net:0", "a.opengw.net:65536", "a.opengw.net:1382;calc", "a.opengw.net:",
+                    "a.opengw.net:1382'", "evil.com:443", "a.opengw.net:01382"]:
+            with self.assertRaises(ValueError, msg=bad):
+                validate_endpoint(bad)
+
+
 class ConnectionManagerTest(unittest.TestCase):
     def test_falls_back_to_next_server(self):
         fake = FakeConnector(good_hosts={"b.opengw.net"})
@@ -156,6 +170,13 @@ class KillSwitchFlowTest(unittest.TestCase):
         self.assertTrue(self.connected(m))
         self.assertTrue(m.snapshot()["protected"])
         self.assertEqual(self.ks.engaged[0], FAKE_DNS)  # c 查不到就跳過
+        m.stop()
+
+    def test_endpoint_with_port_resolves_host_only(self):  # ADR-017
+        m = self.make(good=("a.opengw.net:1382",))
+        m.start("JP", ["a.opengw.net:1382", "b.opengw.net"])
+        self.assertTrue(self.connected(m, "a.opengw.net:1382"))
+        self.assertEqual(self.ks.engaged[0], FAKE_DNS)  # 鍵是主機名稱，不含 port
         m.stop()
 
     def test_engage_failure_disconnects(self):

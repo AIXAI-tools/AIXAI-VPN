@@ -63,7 +63,7 @@ CACHE_PATH = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "AIXAI-VPN" / "
 
 
 def tor_countries() -> list[dict] | None:
-    """15 國各有幾個 Tor 出口節點；抓不到（例如網路被擋）就回傳 None，不影響 VPN Gate 清單。"""
+    """目標國家各有幾個 Tor 出口節點；抓不到（例如網路被擋）就回傳 None，不影響 VPN Gate 清單。"""
     try:
         counts = fetch_exit_counts()
     except (OSError, ValueError):
@@ -78,14 +78,18 @@ def make_search(cache: ServerCache, prober=probe_all):
         fresh = parse_list(fetch_list())
         merged = cache.merge(fresh, time.time())
         targets = [(s, f) for s, f in merged if s.country_code in TARGET_COUNTRIES]
-        latency = prober([s.sstp_host for s, _ in targets])  # {可用主機: 毫秒}
+        # 每台伺服器探測 443 與它自己的 TCP port（ADR-017）；{可用端點: 毫秒}
+        latency = prober([ep for s, _ in targets for ep in s.sstp_endpoints])
 
         by_country: dict[str, list[tuple]] = {}
+        endpoint: dict[str, str] = {}  # 伺服器主機名稱 → 最快的可用端點
         for server, is_fresh in targets:
-            if server.sstp_host in latency:
+            usable = [ep for ep in server.sstp_endpoints if ep in latency]
+            if usable:
+                endpoint[server.sstp_host] = min(usable, key=latency.get)
                 by_country.setdefault(server.country_code, []).append((server, is_fresh))
         for entries in by_country.values():
-            entries.sort(key=lambda e: latency[e[0].sstp_host])  # 從使用者這端量到的延遲，越快越前面
+            entries.sort(key=lambda e: latency[endpoint[e[0].sstp_host]])  # 從使用者這端量到的延遲，越快越前面
 
         countries = []
         for code, name in TARGET_COUNTRIES.items():
@@ -98,8 +102,8 @@ def make_search(cache: ServerCache, prober=probe_all):
                     "count": len(entries),
                     "fresh_count": sum(1 for _, f in entries if f),
                     "best": None if best is None else {
-                        "host": best.sstp_host,
-                        "latency_ms": latency[best.sstp_host],
+                        "host": endpoint[best.sstp_host],
+                        "latency_ms": latency[endpoint[best.sstp_host]],
                         "operator": best.operator,
                     },
                 }
@@ -114,7 +118,7 @@ def make_search(cache: ServerCache, prober=probe_all):
             "countries": countries,
             "tor": tor_countries(),
             # 內部用：每國的候選主機（已排序），不回傳給介面
-            "_candidates": {code: [s.sstp_host for s, _ in entries] for code, entries in by_country.items()},
+            "_candidates": {code: [endpoint[s.sstp_host] for s, _ in entries] for code, entries in by_country.items()},
         }
 
     return search_servers

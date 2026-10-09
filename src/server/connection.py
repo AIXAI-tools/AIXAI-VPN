@@ -11,6 +11,8 @@
 import socket
 import threading
 
+from src.core.vpngate import split_endpoint
+
 MAX_ATTEMPTS = 5  # 每次最多試幾台，避免無止盡重試
 
 
@@ -126,8 +128,11 @@ class ConnectionManager:
             return False
         host_ips = {}
         for h in [host] + [x for x in self._hosts if x != host]:
+            name = split_endpoint(h)[0]  # 端點可能是「主機:port」；hosts 與 DNS 只用主機名稱
+            if name in host_ips:
+                continue
             try:
-                host_ips[h] = self.resolve(h)
+                host_ips[name] = self.resolve(name)
             except OSError:
                 continue  # 查不到的候選就跳過
         try:

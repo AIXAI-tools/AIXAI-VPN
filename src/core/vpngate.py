@@ -3,8 +3,11 @@
 只用 Python 標準函式庫，不碰作業系統設定（ARCHITECTURE：core 必須可攜）。
 """
 
+import base64
+import binascii
 import csv
 import io
+import re
 import urllib.request
 from dataclasses import dataclass
 
@@ -27,10 +30,41 @@ class Server:
     uptime_ms: int
     log_type: str
     operator: str
+    tcp_port: int = 443  # 伺服器 TCP 監聽 port（取自 OpenVPN 設定）；SSTP 也能走這個 port
 
     @property
     def sstp_host(self) -> str:
         return self.hostname + SSTP_DOMAIN
+
+    @property
+    def sstp_endpoints(self) -> list[str]:
+        """可嘗試的 SSTP 端點：先 443，再試伺服器自己的 TCP port（家用網路的志願者伺服器常只開這個）。"""
+        eps = [self.sstp_host]
+        if self.tcp_port != 443:
+            eps.append(f"{self.sstp_host}:{self.tcp_port}")
+        return eps
+
+
+def split_endpoint(endpoint: str) -> tuple[str, int]:
+    """「主機」或「主機:port」→ (主機, port)。"""
+    host, sep, port = endpoint.rpartition(":")
+    if not sep:
+        return endpoint, 443
+    return host, int(port)
+
+
+def openvpn_tcp_port(config_b64: str) -> int:
+    """從 OpenVPN 設定（base64）找出 TCP 監聽 port；不是 TCP 或解析失敗就回傳 443。"""
+    try:
+        cfg = base64.b64decode(config_b64, validate=False).decode("utf-8", "replace")
+    except (binascii.Error, ValueError):
+        return 443
+    proto = re.search(r"^proto\s+(\w+)", cfg, re.M)
+    remote = re.search(r"^remote\s+\S+\s+(\d{1,5})\s*$", cfg, re.M)
+    if not proto or proto.group(1).lower() != "tcp" or not remote:
+        return 443
+    port = int(remote.group(1))
+    return port if 1 <= port <= 65535 else 443
 
 
 def fetch_list(url: str = LIST_URL, timeout: float = 20.0) -> str:
@@ -69,13 +103,14 @@ def parse_list(text: str) -> list[Server]:
                 uptime_ms=_to_int(row[8]),
                 log_type=row[11],
                 operator=row[12],
+                tcp_port=openvpn_tcp_port(row[14]) if len(row) > 14 else 443,
             )
         )
     return servers
 
 
 def filter_targets(servers: list[Server]) -> list[Server]:
-    """只留目標 15 國。"""
+    """只留目標國家。"""
     return [s for s in servers if s.country_code in TARGET_COUNTRIES]
 
 
@@ -90,6 +125,6 @@ def group_by_country(servers: list[Server]) -> dict[str, list[Server]]:
 
 
 def availability(servers: list[Server]) -> list[tuple[str, str, int]]:
-    """回傳 15 國各自有幾台伺服器：[(代碼, 中文名, 台數)]，順序同 TARGET_COUNTRIES。"""
+    """回傳目標國家各自有幾台伺服器：[(代碼, 中文名, 台數)]，順序同 TARGET_COUNTRIES。"""
     groups = group_by_country(filter_targets(servers))
     return [(code, name, len(groups.get(code, []))) for code, name in TARGET_COUNTRIES.items()]

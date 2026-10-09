@@ -46,6 +46,41 @@ class SearchFiltersByProbeTest(unittest.TestCase):
         self.assertNotIn("AU", result["_candidates"])
         self.assertEqual((result["checked"], result["usable"]), (3, 2))
 
+    def test_custom_tcp_port_endpoint_used_when_443_closed(self):  # ADR-017
+        import base64
+        from src.core.vpngate import Server
+        cfg = base64.b64encode(b"client\r\nproto tcp\r\nremote 203.0.113.5 1382\r\n").decode()
+        csv_text = SAMPLE.replace(",AAAA", "," + cfg, 1)  # 第一台（public-vpn-1）改成 TCP 1382
+        latency = {"public-vpn-1.opengw.net:1382": 150, "public-vpn-2.opengw.net": 300}
+        seen = []
+        with tempfile.TemporaryDirectory() as tmp, \
+                mock.patch.object(api, "fetch_list", return_value=csv_text), \
+                mock.patch.object(api, "tor_countries", return_value=None):
+            search = api.make_search(ServerCache(Path(tmp) / "c.json"),
+                                     prober=lambda hosts: seen.extend(hosts) or latency)
+            result = search()
+        self.assertIn("public-vpn-1.opengw.net", seen)        # 443 也會試
+        self.assertIn("public-vpn-1.opengw.net:1382", seen)   # 再試自己的 TCP port
+        jp = next(c for c in result["countries"] if c["code"] == "JP")
+        self.assertEqual(jp["best"]["host"], "public-vpn-1.opengw.net:1382")
+        self.assertEqual(result["_candidates"]["JP"], ["public-vpn-1.opengw.net:1382", "public-vpn-2.opengw.net"])
+
+
+class EndpointTest(unittest.TestCase):
+    def test_openvpn_tcp_port(self):
+        import base64
+        from src.core.vpngate import openvpn_tcp_port
+        enc = lambda t: base64.b64encode(t.encode()).decode()
+        self.assertEqual(openvpn_tcp_port(enc("proto tcp\nremote 1.2.3.4 1382\n")), 1382)
+        self.assertEqual(openvpn_tcp_port(enc("proto udp\nremote 1.2.3.4 1336\n")), 443)  # UDP 不能走 SSTP
+        self.assertEqual(openvpn_tcp_port(enc("proto tcp\nremote 1.2.3.4 99999\n")), 443)
+        self.assertEqual(openvpn_tcp_port("not base64!!"), 443)
+
+    def test_split_endpoint(self):
+        from src.core.vpngate import split_endpoint
+        self.assertEqual(split_endpoint("a.opengw.net"), ("a.opengw.net", 443))
+        self.assertEqual(split_endpoint("a.opengw.net:1382"), ("a.opengw.net", 1382))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -16,6 +16,6 @@ def fetch_exit_counts(timeout: float = 30) -> dict[str, int]:
 
 
 def count_exits(data: dict) -> dict[str, int]:
-    """onionoo 的國家代碼是小寫 → 轉大寫，只留目標 15 國。"""
+    """onionoo 的國家代碼是小寫 → 轉大寫，只留目標國家。"""
     counts = Counter(r.get("country", "").upper() for r in data.get("relays", []))
     return {code: counts.get(code, 0) for code in TARGET_COUNTRIES}

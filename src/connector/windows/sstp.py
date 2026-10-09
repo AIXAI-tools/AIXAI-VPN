@@ -11,6 +11,8 @@ from dataclasses import dataclass
 PROFILE_NAME = "AIXAI-VPN-SSTP"
 # VPN Gate 的 SSTP 主機名稱格式：英數字與連字號 + .opengw.net
 HOST_PATTERN = re.compile(r"^[A-Za-z0-9-]{1,63}\.opengw\.net$")
+# 連線端點：主機名稱，或「主機名稱:port」（ADR-017：家用網路的志願者伺服器常不在 443）
+ENDPOINT_PATTERN = re.compile(r"^([A-Za-z0-9-]{1,63}\.opengw\.net)(?::([1-9][0-9]{0,4}))?$")
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
 # rasdial 常見錯誤碼 → 中文說明
@@ -40,6 +42,13 @@ def validate_host(host: str) -> str:
     return host
 
 
+def validate_endpoint(endpoint: str) -> str:
+    m = ENDPOINT_PATTERN.fullmatch(endpoint)
+    if not m or (m.group(2) and int(m.group(2)) > 65535):
+        raise ValueError(f"不合法的伺服器位址：{endpoint!r}")
+    return endpoint
+
+
 def _powershell(script: str, timeout: float = 30) -> subprocess.CompletedProcess:
     return subprocess.run(
         ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script],
@@ -53,8 +62,8 @@ def _rasdial(*args: str, timeout: float) -> subprocess.CompletedProcess:
 
 class SstpConnector:
     def ensure_profile(self, host: str) -> None:
-        """建立或更新 VPN 設定，指向指定伺服器。所有流量走 VPN（不分流）。"""
-        host = validate_host(host)
+        """建立或更新 VPN 設定，指向指定伺服器（可帶 port）。所有流量走 VPN（不分流）。"""
+        host = validate_endpoint(host)
         script = (
             f"$n='{PROFILE_NAME}'; $h='{host}';"
             "if (Get-VpnConnection -Name $n -ErrorAction SilentlyContinue) {"

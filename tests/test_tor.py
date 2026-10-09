@@ -5,6 +5,7 @@ import unittest
 from pathlib import Path
 
 from src.connector.tor import build_torrc
+from src.core.countries import TARGET_COUNTRIES
 from src.core.geoip import GeoIP
 from src.core.tor_exits import count_exits
 from src.protection.windows.proxy import BYPASS, PROXY_TYPE_PROXY, SystemProxy, tor_settings
@@ -41,7 +42,7 @@ class TorExitsTest(unittest.TestCase):
         counts = count_exits(data)
         self.assertEqual((counts["US"], counts["CA"], counts["JP"]), (2, 1, 0))
         self.assertNotIn("RU", counts)
-        self.assertEqual(len(counts), 15)
+        self.assertEqual(len(counts), len(TARGET_COUNTRIES))
 
 
 class TorrcTest(unittest.TestCase):

@@ -150,7 +150,7 @@ function renderCountries() {
   } else if (mode === "tor" && torList === null && countries.length) {
     empty.textContent = "抓不到 Tor 出口節點資料，請稍後再搜尋。";
   } else {
-    empty.textContent = "目前 15 國都沒有可用的連線，請稍後再搜尋。";
+    empty.textContent = "目前所有目標國家都沒有可用的連線，請稍後再搜尋。";
   }
   empty.hidden = !(all.length === 0 ? ((mode === "tor" && countries.length) || mode === "vpnbook") : avail === 0);
   const offNames = all.filter((x) => !x.count).map((x) => x.name).join("、");
