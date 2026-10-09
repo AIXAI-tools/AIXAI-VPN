@@ -45,8 +45,10 @@ python -m venv .venv
 - 不收集任何使用者資料；個人資料只存在本機 `%LOCALAPPDATA%\AIXAI-VPN\`。詳見 [PRIVACY.md](PRIVACY.md)
 - 各服務的紀錄政策不同（例如 VPN Gate 會保存連線紀錄），請只瀏覽 HTTPS 網站
 - 使用條款與免責聲明：[DISCLAIMER.md](DISCLAIMER.md)
+- 安全性漏洞請私下回報：[SECURITY.md](SECURITY.md)
 - 版本紀錄：[CHANGELOG.md](CHANGELOG.md)
 
 ## 授權
 - 本專案：[MIT License](LICENSE)，Copyright (c) 2026 AIXAI
 - 第三方元件：[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
+- 本專案與 VPN Gate、The Tor Project、VPNBook、WireGuard 均無關聯。「Tor」為 The Tor Project, Inc. 的商標；「WireGuard」為 Jason A. Donenfeld 的註冊商標

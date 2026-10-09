@@ -5,8 +5,8 @@ TERMS_VERSION：使用條款（DISCLAIMER.md）有實質修改時改這裡，使
 """
 
 APP_NAME = "AIXAI-VPN"
-APP_VERSION = "1.0.0"
-TERMS_VERSION = "2026-10-09"
+APP_VERSION = "1.0.1"
+TERMS_VERSION = "2026-10-09.2"
 
 # 公開發佈的 repo：程式內更新、回報都指向這裡
 REPO_OWNER = "AIXAI-tools"
